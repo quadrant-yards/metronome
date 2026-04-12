@@ -1,0 +1,62 @@
+<svg width="100%" viewBox="0 0 680 520" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>Cute metronome icon</title>
+  <desc>A cute illustrated metronome with a swinging pendulum, rosy cheeks, and a happy face</desc>
+
+  <style>
+    @keyframes swing {
+      0%   { transform: rotate(-28deg); transform-origin: 340px 370px; }
+      50%  { transform: rotate(28deg);  transform-origin: 340px 370px; }
+      100% { transform: rotate(-28deg); transform-origin: 340px 370px; }
+    }
+    .pendulum { animation: swing 1s ease-in-out infinite; transform-origin: 340px 370px; }
+  </style>
+
+  <!-- Body: warm trapezoid shape -->
+  <polygon points="230,440 450,440 415,160 265,160" fill="#F5A623"/>
+
+  <!-- Body highlight -->
+  <polygon points="265,165 415,165 400,200 280,200" fill="#F7B84B" opacity="0.6"/>
+
+  <!-- Inner face panel -->
+  <rect x="272" y="185" width="136" height="120" rx="10" fill="#FDE8C4"/>
+
+  <!-- Eyes -->
+  <ellipse cx="308" cy="228" rx="9" ry="10" fill="#3D2B1F"/>
+  <ellipse cx="372" cy="228" rx="9" ry="10" fill="#3D2B1F"/>
+  <!-- Eye shine -->
+  <circle cx="312" cy="224" r="3" fill="white"/>
+  <circle cx="376" cy="224" r="3" fill="white"/>
+
+  <!-- Rosy cheeks -->
+  <ellipse cx="287" cy="255" rx="15" ry="9" fill="#F4897B" opacity="0.55"/>
+  <ellipse cx="393" cy="255" rx="15" ry="9" fill="#F4897B" opacity="0.55"/>
+
+  <!-- Smile -->
+  <path d="M305 258 Q340 278 375 258" stroke="#3D2B1F" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Pendulum rod + weight (animated) -->
+  <g class="pendulum">
+    <line x1="340" y1="370" x2="340" y2="195" stroke="#C0392B" stroke-width="4" stroke-linecap="round"/>
+    <polygon points="340,370 352,390 340,410 328,390" fill="#C0392B"/>
+  </g>
+
+  <!-- Notch / scale tick marks on body -->
+  <line x1="292" y1="318" x2="305" y2="318" stroke="#D4890F" stroke-width="2" stroke-linecap="round"/>
+  <line x1="292" y1="333" x2="305" y2="333" stroke="#D4890F" stroke-width="2" stroke-linecap="round"/>
+  <line x1="292" y1="348" x2="305" y2="348" stroke="#D4890F" stroke-width="2" stroke-linecap="round"/>
+  <line x1="375" y1="318" x2="388" y2="318" stroke="#D4890F" stroke-width="2" stroke-linecap="round"/>
+  <line x1="375" y1="333" x2="388" y2="333" stroke="#D4890F" stroke-width="2" stroke-linecap="round"/>
+  <line x1="375" y1="348" x2="388" y2="348" stroke="#D4890F" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Base -->
+  <rect x="215" y="440" width="250" height="30" rx="8" fill="#C0870E"/>
+
+  <!-- Feet -->
+  <rect x="225" y="466" width="55" height="16" rx="6" fill="#A06A08"/>
+  <rect x="400" y="466" width="55" height="16" rx="6" fill="#A06A08"/>
+
+  <!-- Little star accents -->
+  <text x="195" y="230" font-size="22" fill="#F7B84B" opacity="0.85">✦</text>
+  <text x="463" y="265" font-size="16" fill="#F7B84B" opacity="0.75">✦</text>
+  <text x="468" y="210" font-size="11" fill="#F7B84B" opacity="0.6">✦</text>
+</svg>
