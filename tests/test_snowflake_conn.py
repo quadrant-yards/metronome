@@ -63,6 +63,14 @@ def test_execute_query_returns_fetchall_result_and_closes_cursor():
     fake_cursor.close.assert_called_once()
 
 
+def test_snowflake_config_repr_omits_private_key():
+    config = SnowflakeConfig(
+        account="acct1", user="user1", private_key_pem="SECRET-PEM-CONTENTS",
+        role="role1", database="db1", warehouse="wh1",
+    )
+    assert "SECRET-PEM-CONTENTS" not in repr(config)
+
+
 def test_execute_query_drains_multi_statement_scripts_and_returns_the_last_result():
     fake_cursor = MagicMock()
     fake_cursor.fetchall.side_effect = [

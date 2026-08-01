@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import snowflake.connector
 from cryptography.hazmat.primitives import serialization
@@ -12,7 +12,7 @@ from cryptography.hazmat.primitives import serialization
 class SnowflakeConfig:
     account: str
     user: str
-    private_key_pem: str
+    private_key_pem: str = field(repr=False)
     role: str
     database: str
     warehouse: str
