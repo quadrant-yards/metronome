@@ -1,74 +1,65 @@
-# Project Overview
+# Metronome
 
-## What is Metronome?
+## Overview 
+Metronome powers a weekly meeting called **Metrics** — a structured, recurring review aimed at building a culture of ownership + learning. 
 
-Metronome powers a weekly client meeting called **Metrics** — a structured, recurring review designed to be reliable and boring. The meeting exists across all of Sam's client engagements and follows a strict, standardized format.
+The meeting follows a strict, [standardized format in Sheets](https://docs.google.com/spreadsheets/d/1txVXAT4Ms6pyvFn3COomt98aahXycbfttwWb-wIbgpM/edit). Metric owners pull their metrics, review them, and present them to the team; the team asks questions.
 
-The goal is a durable artifact: Google Sheets files that live in the client's Drive, are populated automatically, and outlast Sam's engagement.
+**Metronome** is a set of tools and skills to make extracting, transforming and (up)loading the metrics less painful.
 
----
+## Usage
 
-## The Meeting Format
+Metronome is cloned locally and used via two independent delivery channels:
 
-- Held weekly, typically **Tuesdays**
-- Each attendee screen-shares their component's Google Sheets file
-- Each file covers one component (e.g. Engineering, Product, Ops) and contains **3–20 tabs**, one per metric
-- Every tab shows:
-  - Trailing **5 weeks** of data
-  - Trailing **12 months** of data
-  - Both as **graphs and raw data points**
-- The format follows a strict template, applied religiously across all clients
+- **Claude skills** — a plugin, installed once at the user/machine level via a local marketplace, so they're available as `/metronome-skills:<skill-name>` in other repos.
+- **Python modules** — the `metronome` package, added to other repos as an editable install (`uv add --editable`), so `import metronome` picks up source edits live.
 
----
+Both channels point at the local on-disk checkout rather than a git remote — there's nothing to publish, and edits are immediately live everywhere. 
 
-## Metric Categories
+# Metrics Meeting
 
-Metrics are organized into components. Common ones include:
+## Context & Goal
 
-- **Engineering** — DataDog, AWS, GCP, and similar tools
-- **Product**
-- **Operations**
-- **Financial**
-- **Revenue**
+Goal of the meeting: a culture of ownership + learning
 
-A typical client has ~50 metrics across 3–5 components. The mix depends on the client's maturity.
+- Ownership: autonomy + accountability  
+- Learning: curiosity + evidence
 
----
+## The Meeting
 
-## Current (Manual) Workflow
+Platonic ideal of the meeting
 
-1. Each metric owner has their own Google Sheet
-2. Every **Monday**, owners manually pull their numbers from their respective tools and enter them into the sheet
-3. Every **Tuesday**, the team meets and takes turns screen-sharing their sheets
+- All owners prepare their own metrics ahead of time 
+- Each owner presents their metrics  
+  - There is a rigid format which allows the team to zip through a million metrics quickly
+  - If an owner will miss the meeting, they need to find someone to cover  
+- Everyone asks questions
+- Improve week over week - add/edit/delete metrics  
+  - Avoid: big metrics projects just for this meeting
 
-This process is cumbersome and relies on each owner knowing how to pull their own data.
+Cadence
+- Every Monday and every 1st day of the month, owners pull their data
+  - Owners should review the data and investigate any anomalies
+- Every Tuesday, the team meets and takes turns screen-sharing their sheets
+  - Owners should be prepared to answer questions about anomalies live
+  - Never moved or canceled; should be a “Metronome”   
 
----
+The meeting is designed to be reliable and boring. 
 
-## What Metronome Does (Vision)
+## Meeting Setup (One-Time)
 
-Metronome is the automation layer that keeps the meeting artifacts fresh. There are four conceptual phases:
+Setting the meeting up (one-off prework)
 
-| Phase | Description | Status |
-|---|---|---|
-| **1. Metric Selection** | Deciding what to measure for a client. The hardest part — big initial effort, evolves over time. | Future scope |
-| **2. Configuration** | Defining which metrics a client tracks, where data lives, and how to transform it. Client-specific transformation logic, standardized output format. | Core |
-| **3. Collection** | Pulling data from sources (APIs, databases, spreadsheets, etc.) on a Monday schedule. | Core |
-| **4. Output** | Populating standardized Google Sheets in the client's Drive, ready for Tuesday. | Core |
+- Sketch mental model of components  
+- Assign a single owner for each component of the mental model  
+- Ask those owners to prepare to choose the metrics they can pull today
 
----
+Metrics are organized into components. A typical startup winds up with ~50 metrics across 3–5 components but starts with only a few. The mix depends on the company's maturity. 
 
-## Key Design Constraints
+## Meeting Evaluation
 
-- **Output lives in the client's Google Drive** — not Sam's infrastructure
-- **The artifact must outlast the engagement** — clients should be able to keep using the sheets after Sam is gone
-- **Transformation logic is client-specific** — the path to the data varies, but the output schema is standardized
-- **Metric selection is a lifecycle, not a one-time event** — big setup at engagement start, refined over time
+Lagging indicators of success of the meeting
 
----
-
-## Open Questions
-
-- Where does Metronome itself live — web app, script, something the client can run?
-- What is the right starting point for building — configuration, collection, or output?
-- How does metric selection eventually get represented in the tool?
+- Everyone can easily articulate the numbers that drive the business  
+- Everyone asks questions of each other  
+- The meeting can run on its own
