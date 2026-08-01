@@ -86,6 +86,8 @@ def write_outputs(
     csv_export_months: int = 12,
     csv_export_floor: date | None = None,
 ) -> None:
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(str(db_path))
     try:
         con.execute("BEGIN TRANSACTION")
