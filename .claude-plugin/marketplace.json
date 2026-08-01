@@ -1,0 +1,11 @@
+{
+  "name": "metronome",
+  "owner": { "name": "Sam" },
+  "plugins": [
+    {
+      "name": "metronome-skills",
+      "source": "./plugins/metronome-skills",
+      "description": "Reusable Claude skills for running the metrics meeting"
+    }
+  ]
+}
