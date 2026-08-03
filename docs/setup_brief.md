@@ -33,7 +33,7 @@ hatch (see the last section) — but nothing below changes structurally when tha
 metronome/
 ├── .claude-plugin/
 │   └── marketplace.json          # skills channel: the catalog
-├── .python-version                # pins this repo's shell to the `metronome` pyenv env
+├── .python-version                # pins this repo's Python version for uv (e.g. "3.13")
 ├── plugins/
 │   └── metronome-skills/         # one plugin, holds all skills
 │       ├── .claude-plugin/
@@ -113,27 +113,29 @@ The repo lives at `~/ghq/github.com/quadrant-yards/metronome` (already created, 
 repo — see below). The only current consumer is `~/ghq/github.com/quadrant-yards/engagements`,
 a single repo with `sealed/` and `david-energy/` as subdirectories, not two separate repos.
 
-Python tooling on this machine is `pyenv` + `pyenv-virtualenv`, not `uv` (`uv` isn't installed
-here). There's a single shared virtualenv, `pyme`, set as the default for the entire `~/ghq`
-tree via `~/ghq/.python-version` — `engagements` inherits it and has no env of its own. So the
-Python channel is wired **once**, globally, by editable-installing `metronome` into `pyme`.
+Python tooling for the rest of this machine is `pyenv` + `pyenv-virtualenv`. There's a single
+shared virtualenv, `pyme`, set as the default for the entire `~/ghq` tree via
+`~/ghq/.python-version` — `engagements` inherits it and has no env of its own. So the Python
+channel is wired **once**, globally, by editable-installing `metronome` into `pyme`.
 
-`metronome` gets its own virtualenv, separate from `pyme`, so developing the package never
-happens inside the shared consumer env — same pattern as the existing `sealed` and `ds` envs.
+`metronome`'s own dev environment, however, is managed with `uv` (Astral's Python tool),
+separate from `pyme` and from pyenv entirely — so developing the package never happens inside
+the shared consumer env, same intent as the old `pyenv virtualenv`-per-project pattern it
+replaced.
 
 ### 1. Create metronome's own dev environment
 
 ```bash
-pyenv virtualenv 3.13.9 metronome
 cd ~/ghq/github.com/quadrant-yards/metronome
-pyenv local metronome
+uv python pin 3.13
+uv sync --extra dev
 ```
 
-`pyenv local` writes a `.python-version` file containing `metronome` at the repo root. Since
-pyenv resolves the nearest `.python-version` walking up from the cwd, any shell `cd`'d into
-this repo now uses the `metronome` env instead of the `pyme` env it would otherwise inherit
-from `~/ghq/.python-version`. Development and testing of `metronome` itself — and any
-dev-only dependencies — happen here, never in `pyme`.
+`uv python pin 3.13` writes a plain version string (`3.13`) to the `.python-version` file at
+the repo root, installing a uv-managed 3.13.x interpreter first if one isn't already available.
+`uv sync --extra dev` then creates a repo-local `.venv/` and installs both the base and `dev`
+(e.g. `pytest`) dependency groups, pinned via `uv.lock`. Development and testing of `metronome`
+itself — and any dev-only dependencies — happen here, never in `pyme`.
 
 ### 2. Add the files
 
@@ -196,11 +198,13 @@ skill(s) in the slash-command list.
 
 ## Day-to-day workflow
 
-**Editing a Python module** — `cd` into `metronome` (its own `.python-version` auto-switches
-the shell to the `metronome` env) and edit `src/metronome/…`. The editable install in `pyme`
-means the change is live everywhere under `~/ghq`, including `engagements`, immediately.
-Nothing to reinstall. Any dev-only dependencies (test runner, linter, etc.) get installed into
-`metronome`, not `pyme` — `pyme` only ever needs what consumers of the package need.
+**Editing a Python module** — `cd` into `metronome` and edit `src/metronome/…`; run things with
+`uv run <command>` (e.g. `uv run pytest`) so they execute against the repo's own `.venv`
+without needing to activate it manually. The editable install in `pyme` means the change is
+live everywhere under `~/ghq`, including `engagements`, immediately. Nothing to reinstall. Any
+dev-only dependencies (test runner, linter, etc.) get added to `metronome`'s own environment
+via `uv add --dev <package>`, not `pyme` — `pyme` only ever needs what consumers of the package
+need.
 
 **Editing or adding a skill** — this is the one asymmetry to remember. Skills are **copied
 into a cache** on install (`~/.claude/plugins/cache`), so unlike Python they are *not* live
