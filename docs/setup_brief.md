@@ -113,15 +113,12 @@ The repo lives at `~/ghq/github.com/quadrant-yards/metronome` (already created, 
 repo — see below). The only current consumer is `~/ghq/github.com/quadrant-yards/engagements`,
 a single repo with `sealed/` and `david-energy/` as subdirectories, not two separate repos.
 
-Python tooling for the rest of this machine is `pyenv` + `pyenv-virtualenv`. There's a single
-shared virtualenv, `pyme`, set as the default for the entire `~/ghq` tree via
-`~/ghq/.python-version` — `engagements` inherits it and has no env of its own. So the Python
-channel is wired **once**, globally, by editable-installing `metronome` into `pyme`.
-
-`metronome`'s own dev environment, however, is managed with `uv` (Astral's Python tool),
-separate from `pyme` and from pyenv entirely — so developing the package never happens inside
-the shared consumer env, same intent as the old `pyenv virtualenv`-per-project pattern it
-replaced.
+All Python tooling on this machine, for both `metronome` itself and its consumers, is `uv`
+(Astral's Python tool) — there is no shared global environment. `metronome`'s own dev
+environment lives in its repo-local `.venv/`. Consumers don't install `metronome` into
+anything; standalone scripts declare it as a dependency directly in their own PEP 723 inline
+script metadata (a `# /// script` header block) with a local path source pointing at this repo,
+and run independently via `uv run <script>.py`.
 
 ### 1. Create metronome's own dev environment
 
@@ -172,26 +169,38 @@ Because this is registered at user scope, the skills are now available in **ever
 Code session on this machine — `engagements` and anything future — with zero per-client
 config.
 
-### 5. Install `metronome` into `pyme` (the consumer env)
+### 5. Wire up a consumer script
 
-```bash
-~/.pyenv/versions/3.13/envs/pyme/bin/pip install -e ~/ghq/github.com/quadrant-yards/metronome
+Add a PEP 723 header to the top of the consuming script, declaring `metronome` as a dependency
+with a local path source pointing at this repo:
+
+```python
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "metronome",
+# ]
+#
+# [tool.uv.sources]
+# metronome = { path = "/Users/sam/ghq/github.com/quadrant-yards/metronome" }
+# ///
+import metronome
 ```
 
-This is a one-time editable install into `pyme` specifically — run with `pyme`'s own `pip`
-binary so it lands there regardless of which env the current shell has active. Because `pyme`
-is the default env for all of `~/ghq`, `import metronome` now works from any repo under
-`~/ghq` (including `engagements`, `sealed/`, `david-energy/`) with no per-repo wiring.
+No install step, no shared env — each script resolves `metronome` independently the first time
+it's run with `uv run <script>.py`.
 
 ### 6. Verify
 
-Python — from inside `engagements` (or anywhere else under `~/ghq`, since `pyme` is global):
+Python:
 
 ```bash
-python -c "import metronome; print(metronome.__file__)"
+uv run <script>.py
 ```
 
-The path should point back into `~/ghq/github.com/quadrant-yards/metronome/src/metronome`.
+`uv` should report building/installing `metronome` from the local path on first run. Add
+`print(metronome.__file__)` to the script temporarily to confirm the resolved path points back
+into `~/ghq/github.com/quadrant-yards/metronome/src/metronome`.
 
 Skills — open Claude Code inside `engagements` and confirm `/metronome-skills:` shows your
 skill(s) in the slash-command list.
@@ -200,11 +209,10 @@ skill(s) in the slash-command list.
 
 **Editing a Python module** — `cd` into `metronome` and edit `src/metronome/…`; run things with
 `uv run <command>` (e.g. `uv run pytest`) so they execute against the repo's own `.venv`
-without needing to activate it manually. The editable install in `pyme` means the change is
-live everywhere under `~/ghq`, including `engagements`, immediately. Nothing to reinstall. Any
-dev-only dependencies (test runner, linter, etc.) get added to `metronome`'s own environment
-via `uv add --dev <package>`, not `pyme` — `pyme` only ever needs what consumers of the package
-need.
+without needing to activate it manually. Since consumer scripts point at this repo via a local
+path source (not an installed copy), `uv run` rebuilds from source each time, so the change is
+live for consumers immediately too — nothing to reinstall. Any dev-only dependencies (test
+runner, linter, etc.) get added to `metronome`'s own environment via `uv add --dev <package>`.
 
 **Editing or adding a skill** — this is the one asymmetry to remember. Skills are **copied
 into a cache** on install (`~/.claude/plugins/cache`), so unlike Python they are *not* live
@@ -230,9 +238,9 @@ two places consumers point at:
 - **Skills**: instead of `claude plugin marketplace add ~/ghq/github.com/quadrant-yards/metronome`, commit a
   `.claude/settings.json` into each client with `extraKnownMarketplaces` →
   `{ "source": "github", "repo": "you/metronome" }` and `enabledPlugins`.
-- **Python**: instead of the one-time editable `pip install -e` into `pyme`, `pip install` a
-  git-based ref pinned to a tag or SHA, e.g.
-  `pip install "metronome @ git+ssh://git@github.com/quadrant-yards/metronome.git@vX.Y.Z"`.
+- **Python**: instead of a local `path` source in each consumer's `[tool.uv.sources]`, point at
+  a git ref pinned to a tag or SHA, e.g.
+  `metronome = { git = "https://github.com/quadrant-yards/metronome", tag = "vX.Y.Z" }`.
 
 At that point you'd start tagging releases in `metronome`. Until then, local is simpler and
 strictly better for iteration.
