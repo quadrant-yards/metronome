@@ -9,7 +9,7 @@ GitHub, Inc. Invoice # INV135524778
 Support Contact BILL TO
 Invoice Date May 15, 2026
 88 Colin P. Kelly Jr. St.
-Sealed Inc
+Acme Inc
 San Francisco, CA 94107 Terms Due Upon Receipt
 389 5th Ave
 Suite 400 Due Date May 15, 2026
@@ -37,7 +37,7 @@ GitHub, Inc. Invoice # INV121852355
 Support Contact BILL TO
 Invoice Date Feb 25, 2026
 88 Colin P. Kelly Jr. St.
-Sealed Inc
+Acme Inc
 San Francisco, CA 94107 Terms Due Upon Receipt
 108 W 39th Street
 Ste 1006 PMB2341 Due Date Feb 25, 2026
@@ -92,7 +92,7 @@ GitHub, Inc. Invoice # INV999999999
 Support Contact BILL TO
 Invoice Date Mar 1, 2026
 88 Colin P. Kelly Jr. St.
-Sealed Inc
+Acme Inc
 San Francisco, CA 94107 Terms Due Upon Receipt
 United States
 QUANTITY DESCRIPTION RATE AMOUNT

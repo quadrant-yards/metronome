@@ -8,7 +8,7 @@ from metronome.costs.vendors import snowflake
 # that's capacity drawdown, not new cost -- correct answer is $0.00.
 CUMULATIVE_STATEMENT_TEXT = """
 USAGE STATEMENT
-CUSTOMER: Sealed STATEMENT DATE: 07/31/2023
+CUSTOMER: Acme STATEMENT DATE: 07/31/2023
 SUMMARY
 Capacity Purchased USD 25,000.00
 MONTHLY USAGE
@@ -39,7 +39,7 @@ Oct-2023 AZ72662-GCP-US-EAST4 TOTAL N/A 43.49
 # counterpart, and the "... TOTAL" row is stuck at 0.00.
 MODERN_STATEMENT_TEXT = """
 USAGE STATEMENT
-CUSTOMER: Sealed STATEMENT DATE: 02/28/2026
+CUSTOMER: Acme STATEMENT DATE: 02/28/2026
 SUMMARY
 Capacity Purchased USD 25,000.00
 MONTHLY USAGE

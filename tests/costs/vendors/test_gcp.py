@@ -9,7 +9,7 @@ DOIT INTERNATIONAL USA INC
 Attn: Eric Born Details: Covering April 2026
 Tel: +9727149325223 Tax ID: 453478769
 TAX INVOICE No: INV-US-26007303
-Google Cloud Project 'sealed-prod' 1 USD1,787.90 1,787.90
+Google Cloud Project 'acme-prod' 1 USD1,787.90 1,787.90
 Total Before Sales Tax USD4,860.40
 0.00% Sales Tax USD 0.00
 Total USD4,860.40
@@ -23,7 +23,7 @@ DOIT INTERNATIONAL USA INC
 5201 Great America Pkwy, Ste. 320
 Attn: Born Eric Details: Covering December 2025
 Sales Invoice IN254024450 Original. - Digitally Signed
-Google Cloud Project 'sealed-dev' 1 USD 1,280.10 1,280.10
+Google Cloud Project 'acme-dev' 1 USD 1,280.10 1,280.10
 Total Price 3,784.82
 Pay by: 01/30/26
 Tax 0.00
@@ -35,7 +35,7 @@ Cust. Company Number: 453478769
 DOLLAR_SIGN_TOTAL_TEXT = """
 DoiT Internationel USA INC
 Attn: Eric Born Details: Covering January 2026
-Google Cloud Project 'sealed-dev' 1 1,282.05 1,282.05
+Google Cloud Project 'acme-dev' 1 1,282.05 1,282.05
 Total Before Tax $3,721.76
 Tax (0.00%) $0.00
 Total $3,721.76
