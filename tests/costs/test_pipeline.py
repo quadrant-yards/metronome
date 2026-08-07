@@ -84,6 +84,33 @@ def test_parse_all_skips_poisoned_file_but_still_parses_the_rest(tmp_path, caplo
     assert any("poison.pdf" in message for message in error_messages)
 
 
+def test_parse_all_skips_files_with_identical_content_keeping_alphabetically_first(tmp_path, caplog):
+    (tmp_path / "a_original.pdf").write_bytes(b"")
+    (tmp_path / "b_copy.pdf").write_bytes(b"")
+    extractor = _fake_extractor(
+        {"a_original.pdf": SNOWFLAKE_TEXT, "b_copy.pdf": SNOWFLAKE_TEXT}
+    )
+
+    with caplog.at_level(logging.WARNING):
+        rows = parse_all(tmp_path, extractor)
+
+    assert len(rows) == 1
+    assert rows[0].source_file == "a_original.pdf"
+    assert any(
+        "a_original.pdf" in message and "b_copy.pdf" in message for message in caplog.messages
+    )
+
+
+def test_parse_all_does_not_dedupe_files_with_different_content(tmp_path):
+    (tmp_path / "sf.pdf").write_bytes(b"")
+    (tmp_path / "dg.pdf").write_bytes(b"")
+    extractor = _fake_extractor({"sf.pdf": SNOWFLAKE_TEXT, "dg.pdf": DAGSTER_TEXT})
+
+    rows = parse_all(tmp_path, extractor)
+
+    assert len(rows) == 2
+
+
 def test_run_writes_duckdb_tables_and_csv(tmp_path):
     (tmp_path / "downloads").mkdir()
     (tmp_path / "downloads" / "sf.pdf").write_bytes(b"")

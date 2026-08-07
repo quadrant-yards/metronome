@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 from collections import defaultdict
 from collections.abc import Callable
@@ -35,9 +36,19 @@ def parse_all(
 ) -> list[CostRow]:
     vendor_modules = vendor_modules if vendor_modules is not None else vendors.ALL
     rows: list[CostRow] = []
+    seen_content_hashes: dict[str, Path] = {}
     for pdf_path in sorted(downloads_dir.glob("*.pdf")):
         try:
             text = text_extractor(pdf_path)
+            digest = hashlib.sha256(text.encode()).hexdigest()
+            if digest in seen_content_hashes:
+                logger.warning(
+                    "%s has identical content to %s; skipping duplicate",
+                    pdf_path.name, seen_content_hashes[digest].name,
+                )
+                continue
+            seen_content_hashes[digest] = pdf_path
+
             matched = [module for module in vendor_modules if module.detect(text)]
             if not matched:
                 logger.warning("no vendor matched %s; skipping", pdf_path.name)
