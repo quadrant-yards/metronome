@@ -10,6 +10,11 @@ from metronome.dateparse import ABBREV_MONTHS, FULL_MONTHS, month_year_to_date
 logger = logging.getLogger(__name__)
 
 _DATE_OF_ISSUE_RE = re.compile(r"Date of issue\s+([A-Za-z]+) (\d{1,2}), (\d{4})")
+# Prefer the pre-credit "Total" line over "Amount due", which nets out any
+# "Applied balance" credit from a prior invoice and would otherwise
+# understate what was actually billed for the period. Fall back to
+# "Amount due" for invoices that don't print a separate Total line.
+_TOTAL_RE = re.compile(r"^Total\s+\$(-?[\d,]+\.\d{2})\s*$", re.MULTILINE)
 _AMOUNT_DUE_RE = re.compile(r"Amount due\s+\$(-?[\d,]+\.\d{2})\s+USD")
 _LINE_AMOUNT_RE = re.compile(r"\$(-?[\d,]+\.\d{2})\s*$")
 _PERIOD_RE = re.compile(
@@ -59,11 +64,11 @@ def _line_item_totals(text: str) -> dict[date, float]:
 
 def parse(text: str, source_file: str, metric_name: str) -> list[CostRow]:
     issue_match = _DATE_OF_ISSUE_RE.search(text)
-    amount_match = _AMOUNT_DUE_RE.search(text)
-    if not issue_match or not amount_match:
+    total_match = _TOTAL_RE.search(text) or _AMOUNT_DUE_RE.search(text)
+    if not issue_match or not total_match:
         raise ValueError(f"could not parse {metric_name} invoice: {source_file}")
 
-    amount_due = _parse_amount(amount_match.group(1))
+    total = _parse_amount(total_match.group(1))
     totals = _line_item_totals(text)
 
     if not totals:
@@ -73,16 +78,16 @@ def parse(text: str, source_file: str, metric_name: str) -> list[CostRow]:
             CostRow(
                 metric_name=metric_name,
                 metric_date=issue_month,
-                metric_value=amount_due,
+                metric_value=total,
                 source_file=source_file,
             )
         ]
 
     line_item_total = round(sum(totals.values()), 2)
-    if abs(line_item_total - round(amount_due, 2)) > 0.01:
+    if abs(line_item_total - round(total, 2)) > 0.01:
         logger.warning(
-            "%s %s: line items sum to %.2f but Amount due is %.2f",
-            metric_name, source_file, line_item_total, amount_due,
+            "%s %s: line items sum to %.2f but Total is %.2f",
+            metric_name, source_file, line_item_total, total,
         )
 
     return [

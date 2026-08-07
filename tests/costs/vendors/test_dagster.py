@@ -90,3 +90,24 @@ def test_parse_raises_when_fields_missing():
 
     with pytest.raises(ValueError):
         dagster.parse("nothing useful here", "bad.pdf")
+
+
+def test_parse_uses_total_not_amount_due_when_a_credit_is_applied():
+    # A prior-invoice credit ("Applied balance") nets against Amount due, so
+    # using Amount due would understate what was actually billed this
+    # period. The metric should reflect the pre-credit Total instead. (No
+    # line items with parseable periods here, so this exercises the
+    # Total/Amount-due fallback path directly, same as the test above.)
+    text = """
+Invoice
+Date of issue July 1, 2026
+billing@dagsterlabs.com
+Subtotal $655.62
+Total $655.62
+Applied balance $400.08
+Amount due $255.54 USD
+""".strip()
+    rows = dagster.parse(text, "credit.pdf")
+    assert len(rows) == 1
+    assert rows[0].metric_date == date(2026, 7, 1)
+    assert rows[0].metric_value == 655.62
