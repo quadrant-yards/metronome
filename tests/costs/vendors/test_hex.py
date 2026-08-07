@@ -9,8 +9,8 @@ Invoice number 65D06C93 0031
 Date of issue October 23, 2025
 Date due October 23, 2025
 Hex Bill to
-2261 Market Street Sealed
-#4233 sam.swift@sealed.com
+2261 Market Street Acme
+#4233 billing@example.com
 San Francisco, California 94114
 United States
 ar@hex.tech
