@@ -1,7 +1,6 @@
 # Metronome
 
-## Overview 
-Metronome powers a weekly meeting called **Metrics** — a structured, recurring review aimed at building a culture of ownership + learning. 
+<img src="img/cute_metronome.svg" alt="Metronome logo" width="120" align="right" hspace="15" vspace="5" /> Metronome powers a weekly meeting called **Metrics** — a structured, recurring review aimed at building a culture of ownership + learning. 
 
 The meeting follows a strict, [standardized format in Sheets](https://docs.google.com/spreadsheets/d/1txVXAT4Ms6pyvFn3COomt98aahXycbfttwWb-wIbgpM/edit). Metric owners pull their metrics, review them, and present them to the team; the team asks questions.
 
