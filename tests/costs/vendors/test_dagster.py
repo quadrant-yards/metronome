@@ -85,6 +85,27 @@ Amount due $105.00 USD
     assert by_month == {date(2026, 1, 1): 5.00, date(2026, 2, 1): 100.00}
 
 
+def test_parse_attributes_month_end_anchored_period_to_the_end_month():
+    # After a plan change, Dagster's subscription anchor shifted to
+    # month-end, so Stripe labels the March cycle "Feb 28 Mar 31, 2026" (the
+    # last day of Feb through the last day of Mar) instead of "Mar 1 Apr 1".
+    # That's a charge for March, not February, even though the line literally
+    # starts in February.
+    text = """
+Invoice
+Date of issue April 1, 2026
+billing@dagsterlabs.com
+Description Qty Unit price Amount
+Flat Fee  Starter Plan) 1 $100.00 $100.00
+Feb 28 Mar 31, 2026
+Amount due $100.00 USD
+""".strip()
+    rows = dagster.parse(text, "anchor.pdf")
+    assert len(rows) == 1
+    assert rows[0].metric_date == date(2026, 3, 1)
+    assert rows[0].metric_value == 100.00
+
+
 def test_parse_raises_when_fields_missing():
     import pytest
 

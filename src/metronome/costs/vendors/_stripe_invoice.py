@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar
 import logging
 import re
 from datetime import date
@@ -28,14 +29,16 @@ def _parse_amount(token: str) -> float:
 
 def _period_start(line: str) -> date | None:
     """Parse a Stripe line-item period range like "Dec 1, 2025 Jan 1, 2026"
-    or "Sep 23 Oct 23, 2025" (first date's year is implied) into its start
-    month. Returns None if the line isn't a period range."""
+    or "Sep 23 Oct 23, 2025" (first date's year is implied) into the month
+    it bills for. Returns None if the line isn't a period range."""
     match = _PERIOD_RE.match(line.strip())
     if not match:
         return None
-    start_month, _start_day, start_year, end_month, _end_day, end_year = match.groups()
+    start_month, start_day, start_year, end_month, end_day, end_year = match.groups()
     if start_month not in ABBREV_MONTHS or end_month not in ABBREV_MONTHS:
         return None
+    start_month_num = ABBREV_MONTHS[start_month]
+    end_month_num = ABBREV_MONTHS[end_month]
     if start_year is not None:
         start_year_int = int(start_year)
     else:
@@ -43,8 +46,18 @@ def _period_start(line: str) -> date | None:
         # date's year, unless the range wraps into a new year (e.g. a
         # "Dec 23 Jan 23, 2026" period, where Dec is actually the prior year).
         start_year_int = int(end_year)
-        if ABBREV_MONTHS[start_month] > ABBREV_MONTHS[end_month]:
+        if start_month_num > end_month_num:
             start_year_int -= 1
+
+    # A subscription anchored on month-end (e.g. after a plan change) labels
+    # its period's start as the last calendar day of the PRIOR month --
+    # "Feb 28 Mar 31, 2026" is Stripe's way of writing the March cycle, not a
+    # charge for February. When the start date is the last day of its month
+    # and the range crosses into a new month, it bills for the end month.
+    days_in_start_month = calendar.monthrange(start_year_int, start_month_num)[1]
+    if start_month_num != end_month_num and int(start_day) == days_in_start_month:
+        return month_year_to_date(end_month, int(end_year), ABBREV_MONTHS)
+
     return month_year_to_date(start_month, start_year_int, ABBREV_MONTHS)
 
 
