@@ -24,6 +24,28 @@ def test_extract_text_joins_pages_with_newlines(tmp_path):
     assert result == "Page one text\nPage two text"
 
 
+def test_extract_text_normalizes_nul_bytes(tmp_path):
+    # Dagster's and Hex's Stripe-generated PDFs render a "(" or minus-sign
+    # glyph that pdfplumber can't map to a real codepoint, emitting a
+    # literal NUL in its place -- e.g. "Feb 1\x00Feb 28, 2026" for a period
+    # range, or "1 \x00$2.67" for a credit line that's really "-$2.67".
+    pdf_path = tmp_path / "invoice.pdf"
+    pdf_path.write_bytes(b"")
+
+    page = MagicMock()
+    page.extract_text.return_value = "Feb 1\x00Feb 28, 2026\nUnused time 1 \x00$2.67"
+
+    fake_pdf = MagicMock()
+    fake_pdf.pages = [page]
+    fake_pdf.__enter__.return_value = fake_pdf
+    fake_pdf.__exit__.return_value = False
+
+    with patch("pdfplumber.open", return_value=fake_pdf):
+        result = extract_text(pdf_path)
+
+    assert result == "Feb 1 Feb 28, 2026\nUnused time 1 $-2.67"
+
+
 def test_extract_text_treats_a_page_with_no_extractable_text_as_empty_string(tmp_path):
     pdf_path = tmp_path / "blank.pdf"
     pdf_path.write_bytes(b"")
