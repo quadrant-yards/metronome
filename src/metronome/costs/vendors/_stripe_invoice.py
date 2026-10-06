@@ -17,6 +17,13 @@ _DATE_OF_ISSUE_RE = re.compile(r"Date of issue\s+([A-Za-z]+) (\d{1,2}), (\d{4})"
 # "Amount due" for invoices that don't print a separate Total line.
 _TOTAL_RE = re.compile(r"^Total\s+\$(-?[\d,]+\.\d{2})\s*$", re.MULTILINE)
 _AMOUNT_DUE_RE = re.compile(r"Amount due\s+\$(-?[\d,]+\.\d{2})\s+USD")
+# Taxed invoices (e.g. Hex after NY sales tax kicked in) print pre-tax line
+# items, a "Total excluding tax" line, then the tax and a tax-inclusive Total.
+_TOTAL_EXCL_TAX_RE = re.compile(
+    r"^Total excluding tax\s+\$(-?[\d,]+\.\d{2})\s*$", re.MULTILINE
+)
+# A line item's Tax column holds a rate like "8.875%" when the line is taxed.
+_TAX_RATE_RE = re.compile(r"\s\d+(?:\.\d+)?%\s")
 _LINE_AMOUNT_RE = re.compile(r"\$(-?[\d,]+\.\d{2})\s*$")
 _PERIOD_RE = re.compile(
     r"^([A-Za-z]{3,9}) (\d{1,2})(?:, (\d{4}))? ([A-Za-z]{3,9}) (\d{1,2}), (\d{4})\s*$"
@@ -61,8 +68,12 @@ def _period_start(line: str) -> date | None:
     return month_year_to_date(start_month, start_year_int, ABBREV_MONTHS)
 
 
-def _line_item_totals(text: str) -> dict[date, float]:
+def _line_item_totals(text: str) -> tuple[dict[date, float], dict[date, float]]:
+    """Sum pre-tax line-item amounts by billed month. Also returns the taxed
+    subset of those amounts by month, so invoice-level tax can be allocated
+    to the months whose line items it was charged on."""
     totals: dict[date, float] = {}
+    taxable: dict[date, float] = {}
     lines = text.splitlines()
     for current_line, next_line in zip(lines, lines[1:]):
         amount_match = _LINE_AMOUNT_RE.search(current_line.strip())
@@ -71,8 +82,32 @@ def _line_item_totals(text: str) -> dict[date, float]:
         period_start = _period_start(next_line)
         if period_start is None:
             continue
-        totals[period_start] = totals.get(period_start, 0.0) + _parse_amount(amount_match.group(1))
-    return totals
+        amount = _parse_amount(amount_match.group(1))
+        totals[period_start] = totals.get(period_start, 0.0) + amount
+        if _TAX_RATE_RE.search(current_line):
+            taxable[period_start] = taxable.get(period_start, 0.0) + amount
+    return totals, taxable
+
+
+def _allocate_tax(
+    totals: dict[date, float], taxable: dict[date, float], tax: float
+) -> dict[date, float]:
+    """Spread invoice-level tax across months pro rata to each month's taxed
+    line items (all line items, if none are marked taxed). Rounding residue
+    goes to the largest month so the rounded rows still sum to the Total."""
+    basis = taxable if sum(taxable.values()) else totals
+    basis_total = sum(basis.values())
+    if not tax or not basis_total:
+        return {month: round(value, 2) for month, value in totals.items()}
+    with_tax = {
+        month: round(value + tax * basis.get(month, 0.0) / basis_total, 2)
+        for month, value in totals.items()
+    }
+    residue = round(sum(totals.values()) + tax - sum(with_tax.values()), 2)
+    if residue:
+        largest = max(basis, key=lambda month: basis[month])
+        with_tax[largest] = round(with_tax[largest] + residue, 2)
+    return with_tax
 
 
 def parse(text: str, source_file: str, metric_name: str) -> list[CostRow]:
@@ -82,7 +117,7 @@ def parse(text: str, source_file: str, metric_name: str) -> list[CostRow]:
         raise ValueError(f"could not parse {metric_name} invoice: {source_file}")
 
     total = _parse_amount(total_match.group(1))
-    totals = _line_item_totals(text)
+    totals, taxable = _line_item_totals(text)
 
     if not totals:
         month_name, _day, year = issue_match.groups()
@@ -97,6 +132,10 @@ def parse(text: str, source_file: str, metric_name: str) -> list[CostRow]:
         ]
 
     line_item_total = round(sum(totals.values()), 2)
+    excl_tax_match = _TOTAL_EXCL_TAX_RE.search(text)
+    if excl_tax_match and abs(line_item_total - _parse_amount(excl_tax_match.group(1))) <= 0.01:
+        totals = _allocate_tax(totals, taxable, round(total - line_item_total, 2))
+        line_item_total = round(sum(totals.values()), 2)
     if abs(line_item_total - round(total, 2)) > 0.01:
         logger.warning(
             "%s %s: line items sum to %.2f but Total is %.2f",

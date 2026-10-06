@@ -80,3 +80,36 @@ def test_parse_raises_when_fields_missing():
 
     with pytest.raises(ValueError):
         hex.parse("nothing useful here", "bad.pdf")
+
+
+# Real text from Invoice-65D06C93-0038.pdf (abridged to the non-zero lines),
+# the first invoice shape with NY sales tax: line items are pre-tax.
+TAXED_INVOICE_TEXT = """
+Invoice
+Date of issue May 23, 2026
+ar@hex.tech
+Description Qty Unit price Tax Amount
+Compute - 2XL 0 $0.0215 $0.00
+Apr 23 May 23, 2026
+1 × Team Edition - Author Seats added on 24 Apr 2026 1 $73.30 8.875% $73.30
+Apr 23 May 23, 2026
+Basic Support 4 $0.00 $0.00
+May 23 Jun 23, 2026
+Team Edition - Author Seats 4 $75.00 8.875% $300.00
+May 23 Jun 23, 2026
+Subtotal $373.30
+Total excluding tax $373.30
+Sales Tax - New York  8.875% on $373.30  $33.13
+Total $406.43
+Amount due $406.43 USD
+""".strip()
+
+
+def test_parse_allocates_sales_tax_to_taxed_line_item_months(caplog):
+    # $33.13 tax split pro rata on $73.30 (April) vs $300.00 (May) taxed
+    # line items; rows must sum to the tax-inclusive Total without warning.
+    rows = hex.parse(TAXED_INVOICE_TEXT, "Invoice-65D06C93-0038.pdf")
+    by_month = {r.metric_date: r.metric_value for r in rows}
+    assert by_month == {date(2026, 4, 1): 79.81, date(2026, 5, 1): 326.62}
+    assert round(sum(by_month.values()), 2) == 406.43
+    assert "line items sum to" not in caplog.text
