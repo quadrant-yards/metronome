@@ -58,16 +58,37 @@ def _bucket_month(start_month: str, start_day: str, start_year: str, end_month: 
     return month_year_to_date(start_month, start_year_int, ABBREV_MONTHS)
 
 
-def _line_item_totals(text: str) -> dict[date, float]:
-    totals: dict[date, float] = defaultdict(float)
+# Each line item also rolls up into a per-product metric alongside the
+# combined "GitHub" total, so seat spend and Copilot spend can be tracked
+# separately. Proration / Proration Credit lines are seat-count changes and
+# belong with the seat subscription they adjust.
+_PRODUCT_PREFIXES = (
+    ("GitHub Business Cloud", "GitHub Seats"),
+    ("GitHub Copilot", "GitHub Copilot"),
+)
+_OTHER_PRODUCT = "GitHub Other"
+
+
+def _product_metric(description: str) -> str:
+    for prefix, metric_name in _PRODUCT_PREFIXES:
+        if description.startswith(prefix):
+            return metric_name
+    logger.warning("unrecognized GitHub line item %r; reporting it as %s", description, _OTHER_PRODUCT)
+    return _OTHER_PRODUCT
+
+
+def _line_item_totals(text: str) -> dict[tuple[str, date], float]:
+    """Pre-tax amounts keyed by (product metric name, service-period month)."""
+    totals: dict[tuple[str, date], float] = defaultdict(float)
     for match in _LINE_ITEM_RE.finditer(text):
         description, amount, start_month, start_day, start_year, end_month, end_day, end_year = match.groups()
         month = _bucket_month(start_month, start_day, start_year, end_month, end_year)
+        product = _product_metric(description)
         value = _parse_amount(amount)
-        totals[month] += value
+        totals[(product, month)] += value
         logger.debug(
-            "line item %r amount=%.2f period=%s %s, %s - %s %s, %s -> bucketed to %s",
-            description, value, start_month, start_day, start_year, end_month, end_day, end_year, month,
+            "line item %r amount=%.2f period=%s %s, %s - %s %s, %s -> bucketed to %s as %s",
+            description, value, start_month, start_day, start_year, end_month, end_day, end_year, month, product,
         )
     return dict(totals)
 
@@ -90,7 +111,11 @@ def parse(text: str, source_file: str) -> list[CostRow]:
         )
         return [CostRow(metric_name="GitHub", metric_date=metric_date, metric_value=total, source_file=source_file)]
 
-    line_item_subtotal = round(sum(line_item_totals.values()), 2)
+    month_totals: dict[date, float] = defaultdict(float)
+    for (_product, month), amount in line_item_totals.items():
+        month_totals[month] += amount
+
+    line_item_subtotal = round(sum(month_totals.values()), 2)
     subtotal_match = _SUBTOTAL_RE.search(text)
     subtotal = _parse_amount(subtotal_match.group(1)) if subtotal_match else line_item_subtotal
     if subtotal_match and abs(line_item_subtotal - round(subtotal, 2)) > 0.01:
@@ -103,16 +128,17 @@ def parse(text: str, source_file: str) -> list[CostRow]:
     tax = _parse_amount(tax_match.group(1)) if tax_match else 0.0
 
     # Tax is billed once per invoice, not per line item, so split it across
-    # each period's bucket in proportion to that bucket's share of the
-    # pre-tax subtotal.
+    # each bucket in proportion to that bucket's share of the pre-tax subtotal.
+    def with_tax(amount: float) -> float:
+        return round(amount + (tax * (amount / subtotal) if subtotal else 0.0), 2)
+
     rows = [
-        CostRow(
-            metric_name="GitHub",
-            metric_date=month,
-            metric_value=round(amount + (tax * (amount / subtotal) if subtotal else 0.0), 2),
-            source_file=source_file,
-        )
-        for month, amount in sorted(line_item_totals.items())
+        CostRow(metric_name="GitHub", metric_date=month, metric_value=with_tax(amount), source_file=source_file)
+        for month, amount in sorted(month_totals.items())
+    ]
+    product_rows = [
+        CostRow(metric_name=product, metric_date=month, metric_value=with_tax(amount), source_file=source_file)
+        for (product, month), amount in sorted(line_item_totals.items())
     ]
 
     rows_total = round(sum(r.metric_value for r in rows), 2)
@@ -122,4 +148,4 @@ def parse(text: str, source_file: str) -> list[CostRow]:
             source_file, rows_total, total,
         )
 
-    return rows
+    return rows + product_rows

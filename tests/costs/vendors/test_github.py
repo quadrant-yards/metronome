@@ -59,6 +59,10 @@ BALANCE DUE: $0.00
 """.strip()
 
 
+def _rows_named(rows, metric_name):
+    return [r for r in rows if r.metric_name == metric_name]
+
+
 def test_detect_true_for_invoice_and_receipt():
     assert github.detect(INVOICE_TEXT) is True
     assert github.detect(RECEIPT_TEXT) is True
@@ -73,18 +77,30 @@ def test_parse_regular_invoice():
     # forward for the May 15 - Jun 14 cycle. Each should land in its own
     # month, with the invoice's tax split proportionally across the two.
     rows = github.parse(INVOICE_TEXT, "INV135524778.pdf")
-    assert len(rows) == 2
-    by_month = {r.metric_date: r.metric_value for r in rows}
+    total_rows = _rows_named(rows, "GitHub")
+    by_month = {r.metric_date: r.metric_value for r in total_rows}
     assert by_month == {date(2026, 4, 1): 103.43, date(2026, 5, 1): 342.96}
-    assert all(r.metric_name == "GitHub" for r in rows)
     assert all(r.source_file == "INV135524778.pdf" for r in rows)
 
 
+def test_parse_regular_invoice_splits_by_product():
+    rows = github.parse(INVOICE_TEXT, "INV135524778.pdf")
+    by_metric = {(r.metric_name, r.metric_date): r.metric_value for r in rows if r.metric_name != "GitHub"}
+    assert by_metric == {
+        ("GitHub Copilot", date(2026, 4, 1)): 103.43,
+        ("GitHub Seats", date(2026, 5, 1)): 342.96,
+    }
+
+
 def test_parse_proration_receipt():
+    # Proration and Proration Credit are both seat-count adjustments, so they
+    # net into GitHub Seats rather than a separate product.
     rows = github.parse(RECEIPT_TEXT, "INV121852355.pdf")
-    assert len(rows) == 1
-    assert rows[0].metric_date == date(2026, 2, 1)
-    assert rows[0].metric_value == 29.39
+    by_metric = {(r.metric_name, r.metric_date): r.metric_value for r in rows}
+    assert by_metric == {
+        ("GitHub", date(2026, 2, 1)): 29.39,
+        ("GitHub Seats", date(2026, 2, 1)): 29.39,
+    }
 
 
 # Hypothetical credit-dominant receipt: line items already show GitHub renders
@@ -113,7 +129,7 @@ BALANCE DUE: $0.00
 
 
 def test_parse_negative_invoice_total_does_not_raise():
-    rows = github.parse(NEGATIVE_TOTAL_TEXT, "INV999999999.pdf")
+    rows = _rows_named(github.parse(NEGATIVE_TOTAL_TEXT, "INV999999999.pdf"), "GitHub")
     assert len(rows) == 1
     assert rows[0].metric_date == date(2026, 2, 1)
     assert rows[0].metric_value == -50.0
@@ -146,7 +162,7 @@ BALANCE DUE: $0.00
 
 
 def test_parse_mismatched_subtotal_does_not_raise():
-    rows = github.parse(MISMATCHED_SUBTOTAL_TEXT, "INV888888888.pdf")
+    rows = _rows_named(github.parse(MISMATCHED_SUBTOTAL_TEXT, "INV888888888.pdf"), "GitHub")
     assert len(rows) == 1
     assert rows[0].metric_value == 95.00
 
@@ -177,7 +193,41 @@ BALANCE DUE: $0.00
 
 
 def test_parse_attributes_month_end_anchored_period_to_the_end_month():
-    rows = github.parse(MONTH_END_ANCHOR_TEXT, "INV777777777.pdf")
+    rows = _rows_named(github.parse(MONTH_END_ANCHOR_TEXT, "INV777777777.pdf"), "GitHub")
     assert len(rows) == 1
     assert rows[0].metric_date == date(2026, 9, 1)
     assert rows[0].metric_value == 210.00
+
+
+UNKNOWN_PRODUCT_TEXT = """
+INVOICE
+GitHub, Inc. Invoice # INV666666666
+Support Contact BILL TO
+Invoice Date Mar 1, 2026
+88 Colin P. Kelly Jr. St.
+Acme Inc
+San Francisco, CA 94107 Terms Due Upon Receipt
+United States
+QUANTITY DESCRIPTION RATE AMOUNT
+GitHub Advanced Security
+2 $49.00 $98.00
+Mar 01, 2026 - Mar 31, 2026
+SUBTOTAL: $98.00
+TAX: $0.00
+INVOICE TOTAL: $98.00
+APPLIED TRANSACTIONS:
+P-00000003 Mar 1, 2026 -$98.00
+BALANCE DUE: $0.00
+""".strip()
+
+
+def test_parse_unrecognized_product_falls_back_to_other(caplog):
+    # A product this parser doesn't know yet still lands in a per-product
+    # metric, so the breakdown always sums to the GitHub total.
+    rows = github.parse(UNKNOWN_PRODUCT_TEXT, "INV666666666.pdf")
+    by_metric = {(r.metric_name, r.metric_date): r.metric_value for r in rows}
+    assert by_metric == {
+        ("GitHub", date(2026, 3, 1)): 98.00,
+        ("GitHub Other", date(2026, 3, 1)): 98.00,
+    }
+    assert any("GitHub Advanced Security" in message for message in caplog.messages)
