@@ -55,9 +55,51 @@ Feb-2026 OVERAGE-TRUST CENTER 101.955 203.91
 Feb-2026 AZ72662-GCP-US-EAST4 TOTAL N/A 0.00
 """.strip()
 
+# Real text from Usage_Statement_171822_2026_9.pdf, the first statement in
+# Snowflake's redesigned layout (customer renamed). Long category names wrap
+# around their numbers line.
+REDESIGNED_STATEMENT_TEXT = """
+CUSTOMER STATEMENT PERIOD CONTRACT NUMBER
+Acme September 2026 171822
+Account summary
+Capacity purchased $25,000.00
+Total capacity $25,500.00
+Total consumed -$3,470.77
+Monthly Usage Details
+AZ72662 GCP-US-EAST4
+Charge
+Charge Description Units Consumed Unit Total Usage (USD)
+Category
+ADJ FOR INCL CLOUD
+-0.905 Credits Adjustment -1.81
+SERVICES
+CLOUD SERVICES 0.905 Credits Usage 1.81
+OVERAGE-ADJ FOR INCL
+-27.916 Credits Adjustment -55.84
+CLOUD SERVICES
+OVERAGE-CLOUD SERVICES 27.916 Credits Usage 55.84
+OVERAGE-COMPUTE 653.843 Credits Usage 1,307.69
+OVERAGE-SERVERLESS
+2.228 Credits Usage 4.48
+TASKS
+OVERAGE-SNOWFLAKE COCO:
+0.409 AI Credits Usage 0.90
+SNOWSIGHT
+OVERAGE-STORAGE 0.168 TiB-Months Usage 3.96
+OVERAGE-TRUST CENTER 72.243 Credits Usage 144.50
+Page 1 of 2
+Account Total 0.00
+Total Amount $0.00
+Page 2 of 2
+""".strip()
+
 
 def test_detect_true_for_snowflake_statement():
     assert snowflake.detect(MODERN_STATEMENT_TEXT) is True
+
+
+def test_detect_true_for_redesigned_statement():
+    assert snowflake.detect(REDESIGNED_STATEMENT_TEXT) is True
 
 
 def test_detect_false_for_unrelated_text():
@@ -82,3 +124,20 @@ def test_parse_modern_statement_sums_only_overage_rows():
     assert row.metric_date == date(2026, 2, 1)
     assert round(row.metric_value, 2) == 927.01
     assert row.statement_date == date(2026, 2, 28)
+
+
+def test_parse_redesigned_statement_sums_overage_rows_including_wrapped():
+    rows = snowflake.parse(REDESIGNED_STATEMENT_TEXT, "stmt_2026_09.pdf")
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.metric_date == date(2026, 9, 1)
+    assert round(row.metric_value, 2) == 1461.53
+    assert row.statement_date == date(2026, 9, 30)
+
+
+def test_parse_redesigned_statement_raises_when_no_charge_lines():
+    import pytest
+
+    header_only = REDESIGNED_STATEMENT_TEXT.split("Charge\n")[0]
+    with pytest.raises(ValueError):
+        snowflake.parse(header_only, "stmt_drifted.pdf")
